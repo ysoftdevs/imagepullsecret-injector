@@ -1,0 +1,8 @@
+vendor/*
+
+build/_output
+
+.go
+.idea
+
+TODO.md

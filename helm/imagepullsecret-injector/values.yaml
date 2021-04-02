@@ -1,0 +1,24 @@
+image:
+  registry: marshallmarshall
+  repository: imagepullsecret-injector
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+certificateGeneratorImage:
+  registry: marshallmarshall
+  repository: webhook-cert-generator
+  tag: ""
+
+imagepullsecretInjector:
+  dockerconfigjsonRef:
+    secretName: my-cool-secret-source
+    secretNamespace: ""
+
+  allSaNames: false
+  saNames:
+    - default
+  excludeNamespaces:
+    - kube-system
+    - traefik
+    - datadog
