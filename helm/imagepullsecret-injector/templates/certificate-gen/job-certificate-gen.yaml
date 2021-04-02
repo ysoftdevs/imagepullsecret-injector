@@ -13,6 +13,10 @@ spec:
         - name: pre-install-job
           image: "{{ .Values.certificateGeneratorImage.registry }}/{{ .Values.certificateGeneratorImage.repository }}:{{ .Values.certificateGeneratorImage.tag | default .Chart.AppVersion }}"
           command: ["/entrypoint/entrypoint.sh"]
+          args:
+            - --service="{{ include "imagepullsecret-injector.serviceName" . }}"
+            - --namespace="{{ .Release.Namespace }}"
+            - --secret="{{ include "imagepullsecret-injector.certificateSecretName" . }}"
           volumeMounts:
             - mountPath: "/entrypoint"
               name: entrypoint

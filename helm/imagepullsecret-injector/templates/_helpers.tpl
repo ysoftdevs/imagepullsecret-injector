@@ -10,6 +10,10 @@ Expand the name of the chart.
 ips-injector-svc
 {{- end }}
 
+{{- define "imagepullsecret-injector.certificateSecretName" -}}
+{{ include "imagepullsecret-injector.name" . }}-webhook-certs
+{{- end }}
+
 {{- define "imagepullsecret-injector.lookupCaBundle" -}}
 {{- /* Find the name of the secret corresponding to the default SA in the default namespace */ -}}
 {{- /* Equivalent to `kubectl get sa -n default default -ojsonpath='{.secrets[0].name}'` */ -}}

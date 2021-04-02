@@ -49,4 +49,4 @@ spec:
       volumes:
       - name: webhook-certs
         secret:
-          secretName: imagepullsecret-injector-webhook-certs
+          secretName: {{ include "imagepullsecret-injector.certificateSecretName" . }}
