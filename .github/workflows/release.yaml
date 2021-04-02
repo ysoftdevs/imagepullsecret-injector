@@ -3,9 +3,9 @@ name: Release Charts
 on:
   push:
     branches:
-      - master
+      - main
     paths:
-      - 'charts/**'
+      - 'helm/**'
 
 jobs:
   release:
@@ -13,10 +13,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+
       - name: Configure Git
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.4.0
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@master
         env:
