@@ -19,11 +19,11 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-      - name: make image
+      - name: Build and push docker images (make image)
         run: make image
         env:
           DOCKER_USER: '${{ secrets.DOCKER_USER }}'
           DOCKER_TOKEN: '${{ secrets.DOCKER_TOKEN }}'
 
-      - name: make docker-logout
+      - name: Logout from dockerhub (make docker-logout)
         run: make docker-logout

@@ -26,7 +26,21 @@ jobs:
         with:
           version: v3.4.0
 
+      - name: Helm version checker
+        id: helm-version-checker
+        continue-on-error: true
+        run: |
+          newVersion="$(helm show chart helm/imagepullsecret-injector | grep version: | awk '{print $2}')"
+          uploadedVersions="$(helm search repo imagepullsecret-injector/imagepullsecret-injector -l | tail -n +2 | awk '{print $2}')"
+          for uploadedVersion in $uploadedVersions; do
+            if [ "$newVersion" == "$uploadedVersion" ]; then
+              exit 1
+            fi
+          done
+
+
       - name: Run chart-releaser
+        if: ${{ step.helm-version-checker.outcome == 'success' }}
         uses: helm/chart-releaser-action@master
         with:
           charts_dir: 'helm'
