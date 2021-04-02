@@ -31,17 +31,20 @@ jobs:
         id: helm_version_checker
         continue-on-error: true
         run: |
-          newVersion="$(helm show chart helm/imagepullsecret-injector | grep version: | awk '{print $2}')"
-
           helm repo add imagepullsecret-injector https://ysoftdevs.github.io/imagepullsecret-injector
           helm repo update
 
+          newVersion="$(helm show chart helm/imagepullsecret-injector | grep version: | awk '{print $2}')"
+          echo "Trying to upload version $newVersion"
           uploadedVersions="$(helm search repo imagepullsecret-injector/imagepullsecret-injector -l | tail -n +2 | awk '{print $2}')"
+          echo "Found these versions in upstream: $uploadedVersions"
           for uploadedVersion in $uploadedVersions; do
             if [ "$newVersion" == "$uploadedVersion" ]; then
+              echo "Found a matching version in upstream, failing this task and skipping the release"
               exit 1
             fi
           done
+          echo "No matching version found, running the release"
 
       - name: Run chart-releaser
         if: steps.helm_version_checker.outcome == 'success'
