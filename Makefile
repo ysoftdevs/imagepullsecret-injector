@@ -18,7 +18,7 @@ export GOPATH ?= $(GOPATH_DEFAULT)
 TESTARGS_DEFAULT := "-v"
 export TESTARGS ?= $(TESTARGS_DEFAULT)
 DEST := $(GOPATH)/src/$(GIT_HOST)/$(BASE_DIR)
-IMAGE_TAG ?= $(shell cat "$(REPO_ROOT)/VERSION")-$(shell git describe --match=$(git rev-parse --short=8 HEAD) --tags --always --dirty)
+IMAGE_TAG ?= $(shell cat "$(REPO_ROOT)/VERSION")
 
 
 LOCAL_OS := $(shell uname)
@@ -78,7 +78,13 @@ build-linux:
 # image section
 ############################################################
 
-image: build-image push-image
+image: docker-login build-image push-image
+
+docker-login:
+	@echo ${DOCKER_TOKEN} | docker login -u ${DOCKER_USER} --password-stdin
+
+docker-logout:
+	@docker logout
 
 build-image:
 	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
