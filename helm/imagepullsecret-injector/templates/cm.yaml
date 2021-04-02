@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tmp
+  namespace: {{ .Release.Namespace }}
+data:
+  caBundle: {{ include "imagepullsecret-injector.lookupCaBundle" . | quote }}

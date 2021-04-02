@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: imagepullsecret-injector-cert-gen
+  namespace : {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: imagepullsecret-injector-cert-gen
+  name: imagepullsecret-injector-cert-gen
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - serviceaccounts
+    verbs:
+      - list
+      - patch
+      - create
+      - get
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - "certificates.k8s.io/v1"
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - create
+      - list
+      - get
+  - apiGroups:
+      - "certificates.k8s.io/v1"
+    resources:
+      - certificatesigningrequests/approval
+    verbs:
+      - update
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - signers
+    resourceNames:
+      - kubernetes.io/kubelet-serving
+    verbs:
+      - approve
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: imagepullsecret-injector-cert-gen
+  labels:
+    {{- include "imagepullsecret-injector.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: imagepullsecret-injector-cert-gen
+subjects:
+  - kind: ServiceAccount
+    name: imagepullsecret-injector-cert-gen
+    namespace : {{ .Release.Namespace }}

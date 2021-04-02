@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    {{- include "imagepullsecret-injector.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      serviceAccountName: imagepullsecret-injector-cert-gen
+      restartPolicy: Never
+      containers:
+        - name: pre-install-job
+          image: "{{ .Values.certificateGeneratorImage.registry }}/{{ .Values.certificateGeneratorImage.repository }}:{{ .Values.certificateGeneratorImage.tag | default .Chart.AppVersion }}"
+          command: ["/entrypoint/entrypoint.sh"]
+          volumeMounts:
+            - mountPath: "/entrypoint"
+              name: entrypoint
+      volumes:
+        - name: entrypoint
+          configMap:
+            name: imagepullsecret-injector-cert-gen-entrypoint
+            items:
+              - key: entrypoint.sh
+                path: entrypoint.sh
+                mode: 0755
