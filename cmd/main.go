@@ -58,22 +58,16 @@ func main() {
 
 	glog.Infof("Running with config: %+v", parameters)
 
-	//sidecarConfig, err := loadConfig(parameters.sidecarCfgFile)
-	//if err != nil {
-	//	glog.Errorf("Failed to load configuration: %v", err)
-	//}
-
-	pair, err := tls.LoadX509KeyPair(parameters.certFile, parameters.keyFile)
-	if err != nil {
-		glog.Errorf("Failed to load key pair: %v", err)
-	}
-
 	whsvr := &WebhookServer{
 		config: &parameters,
 		server: &http.Server{
-			Addr:      fmt.Sprintf(":%v", parameters.port),
-			// TODO: rewrite using GetCertificate
-			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
+			Addr: fmt.Sprintf(":%v", parameters.port),
+			// This is quite inefficient as it loads file contents on every TLS ClientHello, but ¯\_(ツ)_/¯
+			TLSConfig: &tls.Config{GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				glog.Infof("Loading certificates")
+				cert, err := tls.LoadX509KeyPair(parameters.certFile, parameters.keyFile)
+				return &cert, err
+			}},
 		},
 	}
 
