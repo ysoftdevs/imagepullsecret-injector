@@ -80,7 +80,7 @@ build-linux:
 
 image: build-image push-image
 
-build-image: build-linux
+build-image:
 	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
 	@docker build -t $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile .
 	@echo "Building the docker image: $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)..."
