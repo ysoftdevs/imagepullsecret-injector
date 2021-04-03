@@ -51,6 +51,7 @@ func main() {
 	flag.StringVar(&parameters.keyFile, "tlsKeyFile", LookupStringEnv("CONFIG_KEY_PATH", parameters.keyFile), "File containing the x509 private key to --tlsCertFile.")
 	flag.StringVar(&parameters.excludeNamespaces, "excludeNamespaces", LookupStringEnv("CONFIG_EXCLUDE_NAMESPACES", parameters.excludeNamespaces), "Comma-separated namespace names to ignore.")
 	flag.StringVar(&parameters.serviceAccounts, "serviceAccounts", LookupStringEnv("CONFIG_SERVICE_ACCOUNTS", parameters.serviceAccounts), "Comma-separated service account names to watch.")
+	flag.StringVar(&parameters.targetImagePullSecretName, "targetImagePullSecretName", LookupStringEnv("CONFIG_TARGET_IMAGE_PULL_SECRET_NAME", parameters.targetImagePullSecretName), "Name of the imagePullSecret secret we will create in the namespace of the mutated service account")
 	flag.StringVar(&parameters.sourceImagePullSecretName, "sourceImagePullSecretName", LookupStringEnv("CONFIG_SOURCE_IMAGE_PULL_SECRET_NAME", parameters.sourceImagePullSecretName), "Name of the imagePullSecret secret we use as source.")
 	flag.StringVar(&parameters.sourceImagePullSecretNamespace, "sourceImagePullSecretNamespace", LookupStringEnv("CONFIG_SOURCE_IMAGE_PULL_SECRET_NAMESPACE", parameters.sourceImagePullSecretNamespace), "Namespace of the imagePullSecret secret we use as source.")
 	flag.BoolVar(&parameters.allServiceAccounts, "allServiceAccounts", LookupBoolEnv("CONFIG_ALL_SERVICE_ACCOUNTS", parameters.allServiceAccounts), "Switch for watching all service accounts. If true, serviceAccounts parameter is ignored")

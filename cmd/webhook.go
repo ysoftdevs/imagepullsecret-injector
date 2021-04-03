@@ -27,10 +27,6 @@ var (
 	deserializer  = codecs.UniversalDeserializer()
 )
 
-const (
-	imagePullSecretName = "my-cool-secret"
-)
-
 type WebhookServer struct {
 	server *http.Server
 	config *WhSvrParameters
@@ -44,6 +40,7 @@ type WhSvrParameters struct {
 	excludeNamespaces              string
 	serviceAccounts                string
 	allServiceAccounts             bool
+	targetImagePullSecretName      string
 	sourceImagePullSecretName      string
 	sourceImagePullSecretNamespace string
 }
@@ -67,6 +64,7 @@ func DefaultParametersObject() WhSvrParameters {
 		excludeNamespaces:              strings.Join(defaultIgnoredNamespaces, ","),
 		serviceAccounts:                strings.Join(defaultServiceAccounts, ","),
 		allServiceAccounts:             false,
+		targetImagePullSecretName:      "my-cool-secret",
 		sourceImagePullSecretName:      "my-cool-secret-source",
 		sourceImagePullSecretNamespace: "default",
 	}
@@ -149,9 +147,9 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	glog.Infof("Source secret found")
 
 	glog.Infof("Looking for the existing target secret")
-	secret, err := clientset.CoreV1().Secrets(namespace).Get(imagePullSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		glog.Errorf("Could not fetch secret %s in namespace %s: %v", imagePullSecretName, namespace, err)
+		glog.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
 		return err
 	}
 
@@ -159,13 +157,13 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 		glog.Infof("Target secret not found, creating a new one")
 		if _, createErr := clientset.CoreV1().Secrets(namespace).Create(&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      imagePullSecretName,
+				Name:      whsvr.config.targetImagePullSecretName,
 				Namespace: namespace,
 			},
 			Data: sourceSecret.Data,
 			Type: sourceSecret.Type,
 		}); createErr != nil {
-			glog.Errorf("Could not create secret %s in namespace %s: %v", imagePullSecretName, namespace, err)
+			glog.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
 			return err
 		}
 		glog.Infof("Target secret created successfully")
@@ -175,7 +173,7 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	glog.Infof("Target secret found, updating")
 	secret.Data = sourceSecret.Data
 	if _, err := clientset.CoreV1().Secrets(namespace).Update(secret); err != nil {
-		glog.Errorf("Could not update secret %s in namespace %s: %v", imagePullSecretName, namespace, err)
+		glog.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
 		return err
 	}
 	glog.Infof("Target secret updated successfully")
@@ -230,7 +228,7 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	if sa.ImagePullSecrets != nil {
 		glog.Infof("ServiceAccount is already in the correct state, skipping")
 		for _, lor := range sa.ImagePullSecrets {
-			if imagePullSecretName == lor.Name {
+			if whsvr.config.targetImagePullSecretName == lor.Name {
 				return &v1beta1.AdmissionResponse{
 					Allowed: true,
 				}
@@ -241,7 +239,7 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	glog.Infof("ServiceAccount is missing ImagePullSecrets configuration, creating a patch")
 
 	var patch []patchOperation
-	patch = append(patch, addImagePullSecret(sa.ImagePullSecrets, []corev1.LocalObjectReference{{Name: imagePullSecretName}}, "/imagePullSecrets")...)
+	patch = append(patch, addImagePullSecret(sa.ImagePullSecrets, []corev1.LocalObjectReference{{Name: whsvr.config.targetImagePullSecretName}}, "/imagePullSecrets")...)
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
 		glog.Errorf("Could not marshal patch object: %v", err)

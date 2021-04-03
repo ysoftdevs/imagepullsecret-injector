@@ -36,6 +36,8 @@ spec:
               value: {{ join "," .Values.imagepullsecretInjector.excludeNamespaces | quote }}
             - name: CONFIG_SERVICE_ACCOUNTS
               value: {{ join "," .Values.imagepullsecretInjector.saNames | quote }}
+            - name: CONFIG_TARGET_IMAGE_PULL_SECRET_NAME
+              value: {{ .Values.imagepullsecretInjector.targetSecretName | quote }}
             - name: CONFIG_SOURCE_IMAGE_PULL_SECRET_NAME
               value: {{ .Values.imagepullsecretInjector.dockerconfigjsonRef.secretName | quote }}
             - name: CONFIG_SOURCE_IMAGE_PULL_SECRET_NAMESPACE
