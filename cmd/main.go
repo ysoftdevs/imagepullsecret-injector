@@ -55,6 +55,7 @@ func main() {
 	flag.StringVar(&parameters.sourceImagePullSecretName, "sourceImagePullSecretName", LookupStringEnv("CONFIG_SOURCE_IMAGE_PULL_SECRET_NAME", parameters.sourceImagePullSecretName), "Name of the imagePullSecret secret we use as source.")
 	flag.StringVar(&parameters.sourceImagePullSecretNamespace, "sourceImagePullSecretNamespace", LookupStringEnv("CONFIG_SOURCE_IMAGE_PULL_SECRET_NAMESPACE", parameters.sourceImagePullSecretNamespace), "Namespace of the imagePullSecret secret we use as source.")
 	flag.BoolVar(&parameters.allServiceAccounts, "allServiceAccounts", LookupBoolEnv("CONFIG_ALL_SERVICE_ACCOUNTS", parameters.allServiceAccounts), "Switch for watching all service accounts. If true, serviceAccounts parameter is ignored")
+	flag.BoolVar(&parameters.ignoreSecretCreationError, "ignoreSecretCreationError", LookupBoolEnv("CONFIG_IGNORE_SECRET_CREATION_ERROR", parameters.ignoreSecretCreationError), "If true, failed creation/update of secrets in the target namespace will not cause the webhook to fail")
 	flag.Parse()
 
 	glog.Infof("Running with config: %+v", parameters)

@@ -42,6 +42,8 @@ spec:
               value: {{ .Values.imagepullsecretInjector.dockerconfigjsonRef.secretName | quote }}
             - name: CONFIG_SOURCE_IMAGE_PULL_SECRET_NAMESPACE
               value: {{ .Values.imagepullsecretInjector.dockerconfigjsonRef.secretNamespace | default .Release.Namespace | quote }}
+            - name: CONFIG_IGNORE_SECRET_CREATION_ERROR
+              value: {{ .Values.imagepullsecretInjector.ignoreSecretCreationError | quote }}
             - name: CONFIG_ALL_SERVICE_ACCOUNTS
               value: {{ .Values.imagepullsecretInjector.allSaNames | quote }}
           volumeMounts:

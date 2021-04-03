@@ -16,7 +16,7 @@ imagepullsecretInjector:
     secretNamespace: ""
 
   targetSecretName: my-cool-secret
-
+  ignoreSecretCreationError: false
   allSaNames: false
   saNames:
     - default

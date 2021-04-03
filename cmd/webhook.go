@@ -43,6 +43,7 @@ type WhSvrParameters struct {
 	targetImagePullSecretName      string
 	sourceImagePullSecretName      string
 	sourceImagePullSecretNamespace string
+	ignoreSecretCreationError      bool
 }
 
 var (
@@ -67,6 +68,7 @@ func DefaultParametersObject() WhSvrParameters {
 		targetImagePullSecretName:      "my-cool-secret",
 		sourceImagePullSecretName:      "my-cool-secret-source",
 		sourceImagePullSecretNamespace: "default",
+		ignoreSecretCreationError:      false,
 	}
 }
 
@@ -252,11 +254,15 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 
 	if err := whsvr.ensureSecrets(ar); err != nil {
 		glog.Errorf("Could not ensure existence of the imagePullSecret")
-		return &v1beta1.AdmissionResponse{
-			Result: &metav1.Status{
-				Message: err.Error(),
-			},
+		if !whsvr.config.ignoreSecretCreationError {
+			glog.Errorf("Failing the mutation process")
+			return &v1beta1.AdmissionResponse{
+				Result: &metav1.Status{
+					Message: err.Error(),
+				},
+			}
 		}
+		glog.Infof("ignoreSecretCreationError is true, ignoring")
 	}
 
 	return &v1beta1.AdmissionResponse{
