@@ -28,7 +28,7 @@ var (
 )
 
 const (
-	imagePullSecretName       = "my-cool-secret"
+	imagePullSecretName = "my-cool-secret"
 )
 
 type WebhookServer struct {
