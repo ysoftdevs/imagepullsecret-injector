@@ -21,3 +21,5 @@ webhooks:
     resources: ["serviceaccounts"]
   admissionReviewVersions: ["v1", "v1beta1"]
   sideEffects: None
+  # The default "Fail" option prevents Gardener cluster to be hibernated
+  failurePolicy: Ignore
