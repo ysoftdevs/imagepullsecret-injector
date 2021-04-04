@@ -89,6 +89,7 @@ apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
   name: ${csrName}
+  namespace: ${namespace}
 spec:
   signerName: kubernetes.io/kubelet-serving
   groups:
