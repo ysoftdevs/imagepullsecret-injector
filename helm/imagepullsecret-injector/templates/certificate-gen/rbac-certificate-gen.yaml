@@ -30,15 +30,16 @@ rules:
       - list
       - get
   - apiGroups:
-      - "certificates.k8s.io/v1"
+      - certificates.k8s.io
     resources:
       - certificatesigningrequests
     verbs:
       - create
       - list
       - get
+      - delete
   - apiGroups:
-      - "certificates.k8s.io/v1"
+      - certificates.k8s.io
     resources:
       - certificatesigningrequests/approval
     verbs:
