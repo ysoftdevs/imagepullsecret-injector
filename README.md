@@ -32,7 +32,7 @@ Of note is also a fact that the chart runs a lookup to the connected cluster to 
     kubectl create ns imagepullsecret-injector
 
     kubectl create secret -n imagepullsecret-injector \
-        generic my-cool-secret-source \
+        generic acr-dockerconfigjson-source \
         --from-literal=.dockerconfigjson='<your .dockerconfigjson configuration file>'
     ```
 

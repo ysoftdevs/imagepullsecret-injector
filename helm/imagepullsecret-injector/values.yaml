@@ -12,10 +12,10 @@ certificateGeneratorImage:
 
 imagepullsecretInjector:
   dockerconfigjsonRef:
-    secretName: my-cool-secret-source
+    secretName: acr-dockerconfigjson-source
     secretNamespace: ""
 
-  targetSecretName: my-cool-secret
+  targetSecretName: acr-dockerconfigjson
   ignoreSecretCreationError: false
   allSaNames: false
   saNames:
