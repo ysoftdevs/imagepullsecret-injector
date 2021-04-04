@@ -2,6 +2,12 @@
 
 The responsibility of this webhook is to patch all newly created/updated service account and make sure they all contained proper imagepullsecret configuration. 
 
+This repo produces one helm chart available via helm repository https://ysoftdevs.github.io/imagepullsecret-injector. There are also 2 docker images:
+- `marshallmarshall/imagepullsecret-injector` - the image containing the webhook itself
+- `marshallmarshall/webhook-cert-generator` - helper image responsible for (re)generating the certificates
+
+
+
 ## Helm description
 The helm chart consists of 2 parts: the certificate generator and the webhook configuration itself.
 
@@ -21,22 +27,34 @@ The main part is the deployment and the web hook configuration. The flow is as f
 Of note is also a fact that the chart runs a lookup to the connected cluster to fetch the CA bundle for the MutatingWebhook. This means `helm template` won't work.
 
 ## Running locally
-```bash
-kubectl create ns imagepullsecret-injector
+1. Create the prerequisite resources:
+    ```bash
+    kubectl create ns imagepullsecret-injector
 
-kubectl create secret -n imagepullsecret-injector \
-    generic my-cool-secret-source \
-    --from-literal=.dockerconfigjson='<your .dockerconfigjson configuration file>'
+    kubectl create secret -n imagepullsecret-injector \
+        generic my-cool-secret-source \
+        --from-literal=.dockerconfigjson='<your .dockerconfigjson configuration file>'
+    ```
 
-make build-image
-helm upgrade -i imagepullsecret-injector \
-    --create-namespace -n imagepullsecret-injector \
-    helm/imagepullsecret-injector
-```
+1. Build the images and run the chart
+    ``` bash
+    make build-image
+    helm upgrade -i imagepullsecret-injector \
+        -n imagepullsecret-injector \
+        helm/imagepullsecret-injector
+    ```
+    Alternatively, you can use the pre-built, publicly available helm chart and docker images:
+    ```bash
+    helm repo add imagepullsecret-injector https://ysoftdevs.github.io/imagepullsecret-injector
+    helm repo update
+    helm upgrade -i imagepullsecret-injector \
+        -n imagepullsecret-injector \
+        magepullsecret-injector/imagepullsecret-injector
+    ```
 
-To test whether everything works, you can run
-```bash
-kubectl create ns yolo
-kubectl get sa -n yolo default -ojsonpath='{.imagePullSecrets}'
-```
-The get command should display _some_ non-empty result.
+1. To test whether everything works, you can run
+    ```bash
+    kubectl create ns yolo
+    kubectl get sa -n yolo default -ojsonpath='{.imagePullSecrets}'
+    ```
+    The `get` command should display _some_ non-empty result.
