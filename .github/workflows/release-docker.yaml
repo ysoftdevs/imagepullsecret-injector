@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
         with:
-          ref: main
+          ref: ${{ github.ref }}
 
       - name: Configure Git
         run: |
@@ -23,8 +23,8 @@ jobs:
       - name: Build and push docker images (make image)
         run: make image
         env:
-          DOCKER_USER: '${{ secrets.DOCKER_USER }}'
-          DOCKER_TOKEN: '${{ secrets.DOCKER_TOKEN }}'
+          DOCKER_USER: ${GITHUB_ACTOR}
+          DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Logout from dockerhub (make docker-logout)
         run: make docker-logout
