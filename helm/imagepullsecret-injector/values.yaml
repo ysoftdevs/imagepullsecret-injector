@@ -1,12 +1,12 @@
 image:
-  registry: marshallmarshall
+  registry: ghcr.io/ysoftdevs/imagepullsecret-injector
   repository: imagepullsecret-injector
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
 certificateGeneratorImage:
-  registry: marshallmarshall
+  registry: ghcr.io/ysoftdevs/imagepullsecret-injector
   repository: webhook-cert-generator
   tag: ""
 

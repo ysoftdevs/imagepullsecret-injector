@@ -1,7 +1,8 @@
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the
 # IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variable.
-IMAGE_REPO ?= marshallmarshall
+REPOSITORY_BASE ?= ghcr.io
+IMAGE_REPO ?= $(REPOSITORY_BASE)/ysoftdevs/imagepullsecret-injector
 IMAGE_NAME ?= imagepullsecret-injector
 GENERATOR_IMAGE_NAME ?= webhook-cert-generator
 
@@ -81,7 +82,7 @@ build-linux:
 image: docker-login build-image push-image
 
 docker-login:
-	@echo ${DOCKER_TOKEN} | docker login -u ${DOCKER_USER} --password-stdin
+	@echo "$(DOCKER_TOKEN)" | docker login -u "$(DOCKER_USER)" --password-stdin "$(REPOSITORY_BASE)"
 
 docker-logout:
 	@docker logout
