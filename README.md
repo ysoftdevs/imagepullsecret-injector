@@ -3,10 +3,8 @@
 The responsibility of this webhook is to patch all newly created/updated service account and make sure they all contained proper imagepullsecret configuration. 
 
 This repo produces one helm chart available via helm repository https://ysoftdevs.github.io/imagepullsecret-injector. There are also 2 docker images:
-- `marshallmarshall/imagepullsecret-injector` - the image containing the webhook itself
-- `marshallmarshall/webhook-cert-generator` - helper image responsible for (re)generating the certificates
-
-
+- `ghcr.io/ysoftdevs/imagepullsecret-injector/imagepullsecret-injector` - the image containing the webhook itself
+- `ghcr.io/ysoftdevs/imagepullsecret-injector/webhook-cert-generator` - helper image responsible for (re)generating the certificates
 
 ## Helm description
 The helm chart consists of 2 parts: the certificate generator and the webhook configuration itself.
@@ -59,3 +57,6 @@ Of note is also a fact that the chart runs a lookup to the connected cluster to 
     kubectl get sa -n yolo default -ojsonpath='{.imagePullSecrets}'
     ```
     The `get` command should display _some_ non-empty result.
+
+## Releasing locally
+To authenticate to the docker registry to push the images manually, you will need your own Github Personal Access Token. For more information follow this guide https://docs.github.com/en/packages/guides/migrating-to-github-container-registry-for-docker-images#authenticating-with-the-container-registry
