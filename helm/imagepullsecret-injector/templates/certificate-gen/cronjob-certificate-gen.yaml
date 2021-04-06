@@ -12,6 +12,7 @@ spec:
       labels:
         {{- include "imagepullsecret-injector.labels" . | nindent 8 }}
     spec:
+      ttlSecondsAfterFinished: 30
       template:
         spec:
           serviceAccountName: imagepullsecret-injector-cert-gen
