@@ -157,6 +157,11 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 		glog.Errorf("Could not fetch source secret %s in namespace %s: %v", whsvr.config.sourceImagePullSecretName, currentNamespace, err)
 		return err
 	}
+	if sourceSecret.Type != corev1.SecretTypeDockerConfigJson {
+		err := fmt.Errorf("source secret %s in namespace %s exists, but has incorrect type (is %s, should be %s)", whsvr.config.sourceImagePullSecretName, currentNamespace, sourceSecret.Type, corev1.SecretTypeDockerConfigJson)
+		glog.Errorf("%v", err)
+		return err
+	}
 	glog.Infof("Source secret found")
 
 	glog.Infof("Looking for the existing target secret")
