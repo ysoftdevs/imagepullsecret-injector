@@ -60,9 +60,9 @@ func main() {
 
 	glog.Infof("Running with config: %+v", parameters)
 
-	whsvr := &WebhookServer{
-		config: &parameters,
-		server: &http.Server{
+	whsvr, err := NewWebhookServer(
+		&parameters,
+		&http.Server{
 			Addr: fmt.Sprintf(":%v", parameters.port),
 			// This is quite inefficient as it loads file contents on every TLS ClientHello, but ¯\_(ツ)_/¯
 			TLSConfig: &tls.Config{GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -71,6 +71,9 @@ func main() {
 				return &cert, err
 			}},
 		},
+	)
+	if err != nil {
+		glog.Exitf("Could not create the Webhook server: %v", err)
 	}
 
 	// define http server and server handler

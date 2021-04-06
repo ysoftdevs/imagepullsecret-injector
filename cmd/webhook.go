@@ -30,6 +30,7 @@ var (
 type WebhookServer struct {
 	server *http.Server
 	config *WhSvrParameters
+	client *kubernetes.Clientset
 }
 
 // Webhook Server parameters
@@ -56,6 +57,26 @@ var (
 		"default",
 	}
 )
+
+func NewWebhookServer(parameters *WhSvrParameters, server *http.Server) (*WebhookServer, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		glog.Errorf("Could not create k8s client: %v", err)
+		return nil, err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		glog.Errorf("Could not create k8s clientset: %v", err)
+		return nil, err
+	}
+
+	return &WebhookServer{
+		config: parameters,
+		server: server,
+		client: clientset,
+	}, nil
+
+}
 
 func DefaultParametersObject() WhSvrParameters {
 	return WhSvrParameters{
@@ -126,22 +147,12 @@ func getCurrentNamespace() string {
 
 func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	glog.Infof("Ensuring existing secrets")
-	namespace := ar.Request.Namespace
+	targetNamespace := ar.Request.Namespace
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		glog.Errorf("Could not create k8s client: %v", err)
-		return err
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		glog.Errorf("Could not create k8s clientset: %v", err)
-		return err
-	}
 	currentNamespace := getCurrentNamespace()
 
 	glog.Infof("Looking for the source secret")
-	sourceSecret, err := clientset.CoreV1().Secrets(whsvr.config.sourceImagePullSecretNamespace).Get(whsvr.config.sourceImagePullSecretName, metav1.GetOptions{})
+	sourceSecret, err := whsvr.client.CoreV1().Secrets(whsvr.config.sourceImagePullSecretNamespace).Get(whsvr.config.sourceImagePullSecretName, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("Could not fetch source secret %s in namespace %s: %v", whsvr.config.sourceImagePullSecretName, currentNamespace, err)
 		return err
@@ -149,23 +160,23 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	glog.Infof("Source secret found")
 
 	glog.Infof("Looking for the existing target secret")
-	secret, err := clientset.CoreV1().Secrets(namespace).Get(whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
+	secret, err := whsvr.client.CoreV1().Secrets(targetNamespace).Get(whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		glog.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
+		glog.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
 	}
 
 	if err != nil && errors.IsNotFound(err) {
 		glog.Infof("Target secret not found, creating a new one")
-		if _, createErr := clientset.CoreV1().Secrets(namespace).Create(&corev1.Secret{
+		if _, createErr := whsvr.client.CoreV1().Secrets(targetNamespace).Create(&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      whsvr.config.targetImagePullSecretName,
-				Namespace: namespace,
+				Namespace: targetNamespace,
 			},
 			Data: sourceSecret.Data,
 			Type: sourceSecret.Type,
 		}); createErr != nil {
-			glog.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
+			glog.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 			return err
 		}
 		glog.Infof("Target secret created successfully")
@@ -174,8 +185,8 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 
 	glog.Infof("Target secret found, updating")
 	secret.Data = sourceSecret.Data
-	if _, err := clientset.CoreV1().Secrets(namespace).Update(secret); err != nil {
-		glog.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, namespace, err)
+	if _, err := whsvr.client.CoreV1().Secrets(targetNamespace).Update(secret); err != nil {
+		glog.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
 	}
 	glog.Infof("Target secret updated successfully")
