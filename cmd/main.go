@@ -8,39 +8,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/golang/glog"
 )
-
-func LookupStringEnv(envName string, defVal string) string {
-	if envVal, exists := os.LookupEnv(envName); exists {
-		return envVal
-	}
-
-	return defVal
-}
-
-func LookupBoolEnv(envName string, defVal bool) bool {
-	if envVal, exists := os.LookupEnv(envName); exists {
-		if boolVal, err := strconv.ParseBool(envVal); err == nil {
-			return boolVal
-		}
-	}
-
-	return defVal
-}
-
-func LookupIntEnv(envName string, defVal int) int {
-	if envVal, exists := os.LookupEnv(envName); exists {
-		if intVal, err := strconv.Atoi(envVal); err == nil {
-			return intVal
-		}
-	}
-
-	return defVal
-}
 
 func main() {
 	parameters := DefaultParametersObject()

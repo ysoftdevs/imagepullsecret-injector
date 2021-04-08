@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/golang/glog"
@@ -33,11 +32,11 @@ type WebhookServer struct {
 	client *kubernetes.Clientset
 }
 
-// Webhook Server parameters
+// WhSvrParameters represents all configuration options available though cmd parameters or env variables
 type WhSvrParameters struct {
-	port                           int    // webhook server port
-	certFile                       string // path to the x509 certificate for https
-	keyFile                        string // path to the x509 private key matching `CertFile`
+	port                           int
+	certFile                       string
+	keyFile                        string
 	excludeNamespaces              string
 	serviceAccounts                string
 	allServiceAccounts             bool
@@ -58,6 +57,7 @@ var (
 	}
 )
 
+// NewWebhookServer constructor for WebhookServer
 func NewWebhookServer(parameters *WhSvrParameters, server *http.Server) (*WebhookServer, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -78,6 +78,7 @@ func NewWebhookServer(parameters *WhSvrParameters, server *http.Server) (*Webhoo
 
 }
 
+// DefaultParametersObject returns a parameters object with the default values
 func DefaultParametersObject() WhSvrParameters {
 	return WhSvrParameters{
 		port:                           8443,
@@ -128,23 +129,7 @@ func addImagePullSecret(target, added []corev1.LocalObjectReference, basePath st
 	return patch
 }
 
-func getCurrentNamespace() string {
-	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
-	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
-	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
-		return ns
-	}
-
-	// Fall back to the namespace associated with the service account token, if available
-	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
-			return ns
-		}
-	}
-
-	return "default"
-}
-
+// ensureSecrets looks up the source secret and makes sure the namespace the patched SA is in contains it too
 func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	glog.Infof("Ensuring existing secrets")
 	targetNamespace := ar.Request.Namespace
@@ -199,6 +184,7 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	return nil
 }
 
+// shouldMutate goes through all filters and determines whether the incoming SA matches them
 func (whsvr *WebhookServer) shouldMutate(sa corev1.ServiceAccount) bool {
 	for _, excludedNamespace := range strings.Split(whsvr.config.excludeNamespaces, ",") {
 		if sa.Namespace == excludedNamespace {
@@ -219,6 +205,7 @@ func (whsvr *WebhookServer) shouldMutate(sa corev1.ServiceAccount) bool {
 	return false
 }
 
+// mutateServiceAccount contains the whole mutation logic
 func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
 	glog.Infof("Unmarshalling the ServiceAccount object from request")
@@ -291,7 +278,7 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	}
 }
 
-// Serve method for webhook server
+// serve parses the raw incoming request, calls the mutation logic and sends the proper response
 func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
