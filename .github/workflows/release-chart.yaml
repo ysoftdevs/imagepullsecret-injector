@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
-# TODO: add this back
-#    paths:
-#      - 'helm/**'
+    paths:
+      - 'charts/**'
 
 jobs:
   release:
@@ -49,7 +48,5 @@ jobs:
       - name: Run chart-releaser
         if: steps.helm_version_checker.outcome == 'success'
         uses: helm/chart-releaser-action@master
-        with:
-          charts_dir: 'helm'
         env:
           CR_TOKEN: '${{ secrets.GITHUB_TOKEN }}'

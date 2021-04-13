@@ -40,7 +40,7 @@ Of note is also a fact that the chart runs a lookup to the connected cluster to 
     make build-image
     helm upgrade -i imagepullsecret-injector \
         -n imagepullsecret-injector \
-        helm/imagepullsecret-injector
+        charts/imagepullsecret-injector
     ```
     Alternatively, you can use the pre-built, publicly available helm chart and docker images:
     ```bash
