@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{ .Release.Name }}"
+  name: "{{ .Release.Name }}-cert-gen-job"
   labels:
     {{- include "imagepullsecret-injector.labels" . | nindent 4 }}
 spec:
