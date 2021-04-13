@@ -278,8 +278,8 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	}
 }
 
-// serve parses the raw incoming request, calls the mutation logic and sends the proper response
-func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
+func parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.StatusError) {
+	var ar v1beta1.AdmissionReview
 	var body []byte
 	if r.Body != nil {
 		if data, err := ioutil.ReadAll(r.Body); err == nil {
@@ -287,50 +287,69 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(body) == 0 {
-		glog.Error("empty body")
-		http.Error(w, "empty body", http.StatusBadRequest)
-		return
+		glog.Error("Empty body")
+		return ar, errors.NewBadRequest("Empty body")
 	}
 
 	// verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		glog.Errorf("Content-Type=%s, expect application/json", contentType)
-		http.Error(w, "invalid Content-Type, expect `application/json`", http.StatusUnsupportedMediaType)
-		return
+		err := &errors.StatusError{ErrStatus: metav1.Status{
+			Status:  metav1.StatusFailure,
+			Message: fmt.Sprintf("Content-Type=%s, expect application/json", contentType),
+			Reason:  metav1.StatusReasonUnsupportedMediaType,
+			Code:    http.StatusUnsupportedMediaType,
+		}}
+		return ar, err
 	}
 
-	var admissionResponse *v1beta1.AdmissionResponse
-	ar := v1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
-		glog.Errorf("Can't decode body: %v", err)
-		admissionResponse = &v1beta1.AdmissionResponse{
-			Result: &metav1.Status{
-				Message: err.Error(),
-			},
-		}
-	} else {
-		admissionResponse = whsvr.mutateServiceAccount(&ar)
+		glog.Error("Could not parse the request body")
+		return ar, errors.NewBadRequest(fmt.Sprintf("Could not parse the request body: %+v", err))
 	}
 
-	admissionReview := v1beta1.AdmissionReview{
-		TypeMeta: metav1.TypeMeta{Kind: "AdmissionReview", APIVersion: "admission.k8s.io/v1"},
-	}
-	if admissionResponse != nil {
-		admissionReview.Response = admissionResponse
-		if ar.Request != nil {
-			admissionReview.Response.UID = ar.Request.UID
-		}
-	}
+	return ar, nil
+}
 
+func (whsvr *WebhookServer) sendResponse(w http.ResponseWriter, admissionReview v1beta1.AdmissionReview) error {
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return err
 	}
-	glog.Infof("Ready to write reponse ...")
+	glog.Infof("Writing response")
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return err
+	}
+
+	return nil
+}
+
+// serve parses the raw incoming request, calls the mutation logic and sends the proper response
+func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
+	admissionReviewIn, statusErr := parseIncomingRequest(r)
+	if statusErr != nil {
+		http.Error(w, statusErr.ErrStatus.Message, int(statusErr.ErrStatus.Code))
+		return
+	}
+
+	admissionResponse := whsvr.mutateServiceAccount(&admissionReviewIn)
+
+	admissionReviewOut := v1beta1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{Kind: "AdmissionReview", APIVersion: "admission.k8s.io/v1"},
+	}
+	if admissionResponse != nil {
+		admissionReviewOut.Response = admissionResponse
+		if admissionReviewIn.Request != nil {
+			admissionReviewOut.Response.UID = admissionReviewIn.Request.UID
+		}
+	}
+
+	if err := whsvr.sendResponse(w, admissionReviewOut); err != nil {
+		glog.Errorf("Could not send response %v", err)
 	}
 }
