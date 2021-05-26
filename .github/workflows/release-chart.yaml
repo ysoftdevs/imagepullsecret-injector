@@ -46,6 +46,6 @@ jobs:
 
       - name: Run chart-releaser
         if: steps.helm_version_checker.outcome == 'success'
-        uses: helm/chart-releaser-action@master
+        uses: helm/chart-releaser-action@v1.2.1
         env:
           CR_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
