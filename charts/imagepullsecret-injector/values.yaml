@@ -14,7 +14,6 @@ imagepullsecretInjector:
   dockerconfigjsonRef:
     secretName: acr-dockerconfigjson-source
     secretNamespace: ""
-
   targetSecretName: acr-dockerconfigjson
   ignoreSecretCreationError: false
   allSaNames: false
