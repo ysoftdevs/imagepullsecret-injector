@@ -83,23 +83,27 @@ echo "Deleting old CertificateSigningRequests"
 kubectl delete csr ${csrName} 2>/dev/null || true
 
 echo "Creating new CertificateSigningRequests"
-# create  server cert/key CSR and  send to k8s API
-cat <<EOF | kubectl create -f -
-apiVersion: certificates.k8s.io/v1
-kind: CertificateSigningRequest
-metadata:
-  name: ${csrName}
-  namespace: ${namespace}
-spec:
-  signerName: kubernetes.io/kubelet-serving
-  groups:
-  - system:authenticated
-  request: $(< "${tmpdir}"/server.csr base64 | tr -d '\n')
-  usages:
-  - digital signature
-  - key encipherment
-  - server auth
-EOF
+# create server cert/key CSR and  send to k8s API
+jq -n --arg request "$(< "${tmpdir}"/server.csr base64 -w0)" \
+  --arg namespace "$namespace" \
+  --arg csrName "$csrName" '{
+    apiVersion: "certificates.k8s.io/v1beta1",
+    kind: "CertificateSigningRequest",
+    metadata: {
+      name: $csrName,
+      namespace: $namespace
+    },
+    spec: {
+      signerName: "kubernetes.io/kubelet-serving",
+      groups: ["system:authenticated"],
+      request: $request,
+      usages: [
+        "digital signature",
+        "key encipherment",
+        "server auth"
+      ]
+    }
+  }' | kubectl create -f -
 
 # verify CSR has been created
 while true; do
