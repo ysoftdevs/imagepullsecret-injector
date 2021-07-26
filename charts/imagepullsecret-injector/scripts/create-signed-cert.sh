@@ -84,10 +84,10 @@ kubectl delete csr ${csrName} 2>/dev/null || true
 
 echo "Creating new CertificateSigningRequests"
 # create server cert/key CSR and  send to k8s API
-jq -n --arg request "$(< "${tmpdir}"/server.csr base64 -w0)" \
+jq -n --arg request "$(< "${tmpdir}"/server.csr base64)" \
   --arg namespace "$namespace" \
   --arg csrName "$csrName" '{
-    apiVersion: "certificates.k8s.io/v1beta1",
+    apiVersion: "certificates.k8s.io/v1",
     kind: "CertificateSigningRequest",
     metadata: {
       name: $csrName,
