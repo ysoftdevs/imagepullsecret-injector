@@ -22,8 +22,6 @@ spec:
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: IfNotPresent
           args:
-          - -alsologtostderr
-          - -v=4
           - 2>&1
           env:
             - name: CONFIG_PORT
