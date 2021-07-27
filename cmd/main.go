@@ -10,10 +10,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 )
 
+func initLogger() *log.Logger {
+	logger := log.New()
+	logger.SetFormatter(&log.JSONFormatter{})
+
+	return logger
+}
+
 func main() {
+	logger := initLogger()
+
 	parameters := DefaultParametersObject()
 
 	// get command line parameters
@@ -29,7 +38,7 @@ func main() {
 	flag.BoolVar(&parameters.ignoreSecretCreationError, "ignoreSecretCreationError", LookupBoolEnv("CONFIG_IGNORE_SECRET_CREATION_ERROR", parameters.ignoreSecretCreationError), "If true, failed creation/update of secrets in the target namespace will not cause the webhook to fail")
 	flag.Parse()
 
-	glog.Infof("Running with config: %+v", parameters)
+	logger.Infof("Running with config: %+v", parameters)
 
 	whsvr, err := NewWebhookServer(
 		&parameters,
@@ -37,14 +46,16 @@ func main() {
 			Addr: fmt.Sprintf(":%v", parameters.port),
 			// This is quite inefficient as it loads file contents on every TLS ClientHello, but ¯\_(ツ)_/¯
 			TLSConfig: &tls.Config{GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				glog.Infof("Loading certificates")
+				logger.Infof("Loading certificates")
 				cert, err := tls.LoadX509KeyPair(parameters.certFile, parameters.keyFile)
 				return &cert, err
 			}},
 		},
+		logger,
 	)
 	if err != nil {
-		glog.Exitf("Could not create the Webhook server: %v", err)
+		logger.Panicf("Could not create the Webhook server: %v", err)
+		logger.Exit(1)
 	}
 
 	// define http server and server handler
@@ -55,7 +66,7 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := whsvr.server.ListenAndServeTLS(parameters.certFile, parameters.keyFile); err != nil {
-			glog.Errorf("Failed to listen and serve webhook server: %v", err)
+			logger.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
 	}()
 
@@ -64,8 +75,8 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	glog.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
+	logger.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
 	if err := whsvr.server.Shutdown(context.Background()); err != nil {
-		glog.Errorf("Error while shutting down: %v", err)
+		logger.Errorf("Error while shutting down: %v", err)
 	}
 }

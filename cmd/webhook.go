@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"strings"
 
-	"github.com/golang/glog"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	"k8s.io/api/core/v1"
@@ -27,6 +27,8 @@ var (
 )
 
 type WebhookServer struct {
+	logger *log.Logger
+
 	server *http.Server
 	config *WhSvrParameters
 	client *kubernetes.Clientset
@@ -58,19 +60,21 @@ var (
 )
 
 // NewWebhookServer constructor for WebhookServer
-func NewWebhookServer(parameters *WhSvrParameters, server *http.Server) (*WebhookServer, error) {
+func NewWebhookServer(parameters *WhSvrParameters, server *http.Server, logger *log.Logger) (*WebhookServer, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		glog.Errorf("Could not create k8s client: %v", err)
+		logger.Errorf("Could not create k8s client: %v", err)
 		return nil, err
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		glog.Errorf("Could not create k8s clientset: %v", err)
+		logger.Errorf("Could not create k8s clientset: %v", err)
 		return nil, err
 	}
 
 	return &WebhookServer{
+		logger: logger,
+
 		config: parameters,
 		server: server,
 		client: clientset,
@@ -131,33 +135,33 @@ func addImagePullSecret(target, added []corev1.LocalObjectReference, basePath st
 
 // ensureSecrets looks up the source secret and makes sure the namespace the patched SA is in contains it too
 func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
-	glog.Infof("Ensuring existing secrets")
+	whsvr.logger.Infof("Ensuring existing secrets")
 	targetNamespace := ar.Request.Namespace
 
 	currentNamespace := getCurrentNamespace()
 
-	glog.Infof("Looking for the source secret")
+	whsvr.logger.Infof("Looking for the source secret")
 	sourceSecret, err := whsvr.client.CoreV1().Secrets(whsvr.config.sourceImagePullSecretNamespace).Get(whsvr.config.sourceImagePullSecretName, metav1.GetOptions{})
 	if err != nil {
-		glog.Errorf("Could not fetch source secret %s in namespace %s: %v", whsvr.config.sourceImagePullSecretName, currentNamespace, err)
+		whsvr.logger.Errorf("Could not fetch source secret %s in namespace %s: %v", whsvr.config.sourceImagePullSecretName, currentNamespace, err)
 		return err
 	}
 	if sourceSecret.Type != corev1.SecretTypeDockerConfigJson {
 		err := fmt.Errorf("source secret %s in namespace %s exists, but has incorrect type (is %s, should be %s)", whsvr.config.sourceImagePullSecretName, currentNamespace, sourceSecret.Type, corev1.SecretTypeDockerConfigJson)
-		glog.Errorf("%v", err)
+		whsvr.logger.Errorf("%v", err)
 		return err
 	}
-	glog.Infof("Source secret found")
+	whsvr.logger.Infof("Source secret found")
 
-	glog.Infof("Looking for the existing target secret")
+	whsvr.logger.Infof("Looking for the existing target secret")
 	secret, err := whsvr.client.CoreV1().Secrets(targetNamespace).Get(whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		glog.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
+		whsvr.logger.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
 	}
 
 	if err != nil && errors.IsNotFound(err) {
-		glog.Infof("Target secret not found, creating a new one")
+		whsvr.logger.Infof("Target secret not found, creating a new one")
 		if _, createErr := whsvr.client.CoreV1().Secrets(targetNamespace).Create(&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      whsvr.config.targetImagePullSecretName,
@@ -166,20 +170,20 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 			Data: sourceSecret.Data,
 			Type: sourceSecret.Type,
 		}); createErr != nil {
-			glog.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
+			whsvr.logger.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 			return err
 		}
-		glog.Infof("Target secret created successfully")
+		whsvr.logger.Infof("Target secret created successfully")
 		return nil
 	}
 
-	glog.Infof("Target secret found, updating")
+	whsvr.logger.Infof("Target secret found, updating")
 	secret.Data = sourceSecret.Data
 	if _, err := whsvr.client.CoreV1().Secrets(targetNamespace).Update(secret); err != nil {
-		glog.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
+		whsvr.logger.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
 	}
-	glog.Infof("Target secret updated successfully")
+	whsvr.logger.Infof("Target secret updated successfully")
 
 	return nil
 }
@@ -208,10 +212,10 @@ func (whsvr *WebhookServer) shouldMutate(sa corev1.ServiceAccount) bool {
 // mutateServiceAccount contains the whole mutation logic
 func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
-	glog.Infof("Unmarshalling the ServiceAccount object from request")
+	whsvr.logger.Infof("Unmarshalling the ServiceAccount object from request")
 	var sa corev1.ServiceAccount
 	if err := json.Unmarshal(req.Object.Raw, &sa); err != nil {
-		glog.Errorf("Could not unmarshal raw object: %v", err)
+		whsvr.logger.Errorf("Could not unmarshal raw object: %v", err)
 		return &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
@@ -219,11 +223,11 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 		}
 	}
 
-	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
+	whsvr.logger.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
 		req.Kind, req.Namespace, req.Name, sa.Name, req.UID, req.Operation, req.UserInfo)
 
 	if !whsvr.shouldMutate(sa) {
-		glog.Infof("Conditions for mutation not met, skipping")
+		whsvr.logger.Infof("Conditions for mutation not met, skipping")
 		return &v1beta1.AdmissionResponse{
 			Allowed: true,
 		}
@@ -231,7 +235,7 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 
 	// Check whether we already have the imagePullSecretName present
 	if sa.ImagePullSecrets != nil {
-		glog.Infof("ServiceAccount is already in the correct state, skipping")
+		whsvr.logger.Infof("ServiceAccount is already in the correct state, skipping")
 		for _, lor := range sa.ImagePullSecrets {
 			if whsvr.config.targetImagePullSecretName == lor.Name {
 				return &v1beta1.AdmissionResponse{
@@ -241,13 +245,13 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 		}
 	}
 
-	glog.Infof("ServiceAccount is missing ImagePullSecrets configuration, creating a patch")
+	whsvr.logger.Infof("ServiceAccount is missing ImagePullSecrets configuration, creating a patch")
 
 	var patch []patchOperation
 	patch = append(patch, addImagePullSecret(sa.ImagePullSecrets, []corev1.LocalObjectReference{{Name: whsvr.config.targetImagePullSecretName}}, "/imagePullSecrets")...)
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		glog.Errorf("Could not marshal patch object: %v", err)
+		whsvr.logger.Errorf("Could not marshal patch object: %v", err)
 		return &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
@@ -256,16 +260,16 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	}
 
 	if err := whsvr.ensureSecrets(ar); err != nil {
-		glog.Errorf("Could not ensure existence of the imagePullSecret")
+		whsvr.logger.Errorf("Could not ensure existence of the imagePullSecret")
 		if !whsvr.config.ignoreSecretCreationError {
-			glog.Errorf("Failing the mutation process")
+			whsvr.logger.Errorf("Failing the mutation process")
 			return &v1beta1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
 			}
 		}
-		glog.Infof("ignoreSecretCreationError is true, ignoring")
+		whsvr.logger.Infof("ignoreSecretCreationError is true, ignoring")
 	}
 
 	return &v1beta1.AdmissionResponse{
@@ -278,7 +282,7 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 	}
 }
 
-func parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.StatusError) {
+func (whsvr *WebhookServer) parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.StatusError) {
 	var ar v1beta1.AdmissionReview
 	var body []byte
 	if r.Body != nil {
@@ -287,14 +291,14 @@ func parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.Sta
 		}
 	}
 	if len(body) == 0 {
-		glog.Error("Empty body")
+		whsvr.logger.Error("Empty body")
 		return ar, errors.NewBadRequest("Empty body")
 	}
 
 	// verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		glog.Errorf("Content-Type=%s, expect application/json", contentType)
+		whsvr.logger.Errorf("Content-Type=%s, expect application/json", contentType)
 		err := &errors.StatusError{ErrStatus: metav1.Status{
 			Status:  metav1.StatusFailure,
 			Message: fmt.Sprintf("Content-Type=%s, expect application/json", contentType),
@@ -305,7 +309,7 @@ func parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.Sta
 	}
 
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
-		glog.Error("Could not parse the request body")
+		whsvr.logger.Error("Could not parse the request body")
 		return ar, errors.NewBadRequest(fmt.Sprintf("Could not parse the request body: %+v", err))
 	}
 
@@ -315,13 +319,13 @@ func parseIncomingRequest(r *http.Request) (v1beta1.AdmissionReview, *errors.Sta
 func (whsvr *WebhookServer) sendResponse(w http.ResponseWriter, admissionReview v1beta1.AdmissionReview) error {
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
-		glog.Errorf("Can't encode response: %v", err)
+		whsvr.logger.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
-	glog.Infof("Writing response")
+	whsvr.logger.Infof("Writing response")
 	if _, err := w.Write(resp); err != nil {
-		glog.Errorf("Can't write response: %v", err)
+		whsvr.logger.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -331,7 +335,7 @@ func (whsvr *WebhookServer) sendResponse(w http.ResponseWriter, admissionReview 
 
 // serve parses the raw incoming request, calls the mutation logic and sends the proper response
 func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
-	admissionReviewIn, statusErr := parseIncomingRequest(r)
+	admissionReviewIn, statusErr := whsvr.parseIncomingRequest(r)
 	if statusErr != nil {
 		http.Error(w, statusErr.ErrStatus.Message, int(statusErr.ErrStatus.Code))
 		return
@@ -350,6 +354,6 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := whsvr.sendResponse(w, admissionReviewOut); err != nil {
-		glog.Errorf("Could not send response %v", err)
+		whsvr.logger.Errorf("Could not send response %v", err)
 	}
 }
