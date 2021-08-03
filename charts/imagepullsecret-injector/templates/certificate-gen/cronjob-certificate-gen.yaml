@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "imagepullsecret-injector.labels" . | nindent 4 }}
 spec:
-  schedule: '* * * * 0'
+  schedule: {{ .Values.certificateGenerator.cronJobSchedule }}
   jobTemplate:
     metadata:
       name: "{{ .Release.Name }}"
