@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -76,7 +75,7 @@ func main() {
 	<-signalChan
 
 	logger.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
-	if err := whsvr.server.Shutdown(context.Background()); err != nil {
+	if err := whsvr.Shutdown(); err != nil {
 		logger.Errorf("Error while shutting down: %v", err)
 	}
 }
