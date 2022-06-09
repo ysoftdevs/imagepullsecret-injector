@@ -1,4 +1,4 @@
-FROM alpine:3.13.4
+FROM alpine:3.15.4
 
 RUN addgroup -S imagepullsecret-injector-group && adduser -S imagepullsecret-injector-user -G imagepullsecret-injector-group \
     && apk add bash curl openssl jq \

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -29,9 +30,10 @@ var (
 type WebhookServer struct {
 	logger *log.Logger
 
-	server *http.Server
-	config *WhSvrParameters
-	client *kubernetes.Clientset
+	server  *http.Server
+	config  *WhSvrParameters
+	client  *kubernetes.Clientset
+	context context.Context
 }
 
 // WhSvrParameters represents all configuration options available though cmd parameters or env variables
@@ -75,9 +77,10 @@ func NewWebhookServer(parameters *WhSvrParameters, server *http.Server, logger *
 	return &WebhookServer{
 		logger: logger,
 
-		config: parameters,
-		server: server,
-		client: clientset,
+		config:  parameters,
+		server:  server,
+		client:  clientset,
+		context: context.Background(),
 	}, nil
 
 }
@@ -141,7 +144,7 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	currentNamespace := getCurrentNamespace()
 
 	whsvr.logger.Infof("Looking for the source secret")
-	sourceSecret, err := whsvr.client.CoreV1().Secrets(whsvr.config.sourceImagePullSecretNamespace).Get(whsvr.config.sourceImagePullSecretName, metav1.GetOptions{})
+	sourceSecret, err := whsvr.client.CoreV1().Secrets(whsvr.config.sourceImagePullSecretNamespace).Get(whsvr.context, whsvr.config.sourceImagePullSecretName, metav1.GetOptions{})
 	if err != nil {
 		whsvr.logger.Errorf("Could not fetch source secret %s in namespace %s: %v", whsvr.config.sourceImagePullSecretName, currentNamespace, err)
 		return err
@@ -154,7 +157,7 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 	whsvr.logger.Infof("Source secret found")
 
 	whsvr.logger.Infof("Looking for the existing target secret")
-	secret, err := whsvr.client.CoreV1().Secrets(targetNamespace).Get(whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
+	secret, err := whsvr.client.CoreV1().Secrets(targetNamespace).Get(whsvr.context, whsvr.config.targetImagePullSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		whsvr.logger.Errorf("Could not fetch secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
@@ -162,14 +165,14 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 
 	if err != nil && errors.IsNotFound(err) {
 		whsvr.logger.Infof("Target secret not found, creating a new one")
-		if _, createErr := whsvr.client.CoreV1().Secrets(targetNamespace).Create(&corev1.Secret{
+		if _, createErr := whsvr.client.CoreV1().Secrets(targetNamespace).Create(whsvr.context, &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      whsvr.config.targetImagePullSecretName,
 				Namespace: targetNamespace,
 			},
 			Data: sourceSecret.Data,
 			Type: sourceSecret.Type,
-		}); createErr != nil {
+		}, metav1.CreateOptions{}); createErr != nil {
 			whsvr.logger.Errorf("Could not create secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 			return err
 		}
@@ -179,7 +182,7 @@ func (whsvr *WebhookServer) ensureSecrets(ar *v1beta1.AdmissionReview) error {
 
 	whsvr.logger.Infof("Target secret found, updating")
 	secret.Data = sourceSecret.Data
-	if _, err := whsvr.client.CoreV1().Secrets(targetNamespace).Update(secret); err != nil {
+	if _, err := whsvr.client.CoreV1().Secrets(targetNamespace).Update(whsvr.context, secret, metav1.UpdateOptions{}); err != nil {
 		whsvr.logger.Errorf("Could not update secret %s in namespace %s: %v", whsvr.config.targetImagePullSecretName, targetNamespace, err)
 		return err
 	}
@@ -356,4 +359,8 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	if err := whsvr.sendResponse(w, admissionReviewOut); err != nil {
 		whsvr.logger.Errorf("Could not send response %v", err)
 	}
+}
+
+func (whsvr *WebhookServer) Shutdown() error {
+	return whsvr.server.Shutdown(context.Background())
 }
