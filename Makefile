@@ -67,6 +67,10 @@ test:
 # build section
 ############################################################
 
+vendor:
+	@echo "Vendoring..."
+	@go mod vendor
+
 build:
 	@echo "Building the $(IMAGE_NAME) binary..."
 	@CGO_ENABLED=0 go build -o build/_output/bin/$(IMAGE_NAME) ./cmd/
@@ -76,10 +80,39 @@ build-linux:
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o build/_output/linux/bin/$(IMAGE_NAME) ./cmd/
 
 ############################################################
-# image section
+# Containerd image section
 ############################################################
 
-image: docker-login build-image push-image
+containerd-image: containerd-login containerd-image containerd-image
+
+containerd-login:
+	@echo "$(DOCKER_TOKEN)" | nerdctl login -u "$(DOCKER_USER)" --password-stdin "$(REPOSITORY_BASE)"
+
+containerd-logout:
+	@docker logout
+
+containerd-build:
+	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
+	@nerdctl build -t $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile .
+	@echo "Building the docker image: $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)..."
+	@nerdctl build -t $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile.cert-generator .
+
+containerd-push: containerd-build-image
+	@echo "Pushing the docker image for $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(IMAGE_NAME):latest..."
+	@nerdctl tag $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(IMAGE_NAME):latest
+	@nerdctl push $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)
+	@nerdctl push $(IMAGE_REPO)/$(IMAGE_NAME):latest
+	@echo "Pushing the docker image for $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest..."
+	@nerdctl tag $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
+	@nerdctl push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)
+	@nerdctl push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
+
+
+############################################################
+# Docker image section
+############################################################
+
+docker-image: docker-login docker-build docker-push
 
 docker-login:
 	@echo "$(DOCKER_TOKEN)" | docker login -u "$(DOCKER_USER)" --password-stdin "$(REPOSITORY_BASE)"
@@ -87,13 +120,13 @@ docker-login:
 docker-logout:
 	@docker logout
 
-build-image:
+docker-build:
 	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
 	@docker build -t $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile .
 	@echo "Building the docker image: $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)..."
 	@docker build -t $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile.cert-generator .
 
-push-image: build-image
+docker-push: docker-build
 	@echo "Pushing the docker image for $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(IMAGE_NAME):latest..."
 	@docker tag $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(IMAGE_NAME):latest
 	@docker push $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)
@@ -110,4 +143,4 @@ push-image: build-image
 clean:
 	@rm -rf build/_output
 
-.PHONY: all fmt lint check test build image clean
+.PHONY: all fmt lint check test build docker-image containerd-image clean
