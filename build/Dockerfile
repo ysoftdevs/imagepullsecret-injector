@@ -2,7 +2,7 @@ FROM golang:1.17.10 AS builder
 
 WORKDIR /go/src/github.com/ysoftdevs/imagepullsecret-injector
 COPY . .
-RUN make build
+RUN make vendor build
 
 FROM alpine:3.15.4 as base
 COPY --from=builder /go/src/github.com/ysoftdevs/imagepullsecret-injector/build/_output/bin/imagepullsecret-injector /usr/local/bin/imagepullsecret-injector

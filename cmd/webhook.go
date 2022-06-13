@@ -236,11 +236,24 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 		}
 	}
 
-	// Check whether we already have the imagePullSecretName present
+	// Make sure the secrets are present
+	if err := whsvr.ensureSecrets(ar); err != nil {
+		whsvr.logger.Errorf("Could not ensure existence of the imagePullSecret")
+		if !whsvr.config.ignoreSecretCreationError {
+			whsvr.logger.Errorf("Failing the mutation process")
+			return &v1beta1.AdmissionResponse{
+				Result: &metav1.Status{
+					Message: err.Error(),
+				},
+			}
+		}
+		whsvr.logger.Infof("ignoreSecretCreationError is true, ignoring")
+	}
+
 	if sa.ImagePullSecrets != nil {
-		whsvr.logger.Infof("ServiceAccount is already in the correct state, skipping")
 		for _, lor := range sa.ImagePullSecrets {
 			if whsvr.config.targetImagePullSecretName == lor.Name {
+				whsvr.logger.Infof("ServiceAccount is already in the correct state, skipping the patch")
 				return &v1beta1.AdmissionResponse{
 					Allowed: true,
 				}
@@ -260,19 +273,6 @@ func (whsvr *WebhookServer) mutateServiceAccount(ar *v1beta1.AdmissionReview) *v
 				Message: err.Error(),
 			},
 		}
-	}
-
-	if err := whsvr.ensureSecrets(ar); err != nil {
-		whsvr.logger.Errorf("Could not ensure existence of the imagePullSecret")
-		if !whsvr.config.ignoreSecretCreationError {
-			whsvr.logger.Errorf("Failing the mutation process")
-			return &v1beta1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-		}
-		whsvr.logger.Infof("ignoreSecretCreationError is true, ignoring")
 	}
 
 	return &v1beta1.AdmissionResponse{
