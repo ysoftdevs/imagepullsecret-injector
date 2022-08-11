@@ -6,6 +6,8 @@ metadata:
   labels:
     app: imagepullsecret-injector
     {{- include "imagepullsecret-injector.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "imagepullsecret-injector.certificateName" . }}
 webhooks:
 - name: imagepullsecret-injector.ysoftdevs.github.com
   clientConfig:
@@ -13,7 +15,7 @@ webhooks:
       name: {{ include "imagepullsecret-injector.serviceName" . }}
       namespace : {{ .Release.Namespace }}
       path: "/mutate"
-    caBundle: {{ include "imagepullsecret-injector.lookupCaBundle" . }}
+    caBundle: "Cg=="
   rules:
   - operations: ["CREATE", "UPDATE"]
     apiGroups: [""]
