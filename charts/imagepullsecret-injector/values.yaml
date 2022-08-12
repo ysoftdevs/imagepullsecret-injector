@@ -5,11 +5,6 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-certificateGeneratorImage:
-  registry: ghcr.io/ysoftdevs/imagepullsecret-injector
-  repository: webhook-cert-generator
-  tag: ""
-
 imagepullsecretInjector:
   dockerconfigjsonRef:
     secretName: acr-dockerconfigjson-source
@@ -27,3 +22,5 @@ imagepullsecretInjector:
 
 certificateGenerator:
   cronJobSchedule: '0 0 * * 0' # At 00:00 on Sunday
+
+clusterIssuer: "webhook-issuer"

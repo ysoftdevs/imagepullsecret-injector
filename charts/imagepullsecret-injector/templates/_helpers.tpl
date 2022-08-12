@@ -10,18 +10,12 @@ Expand the name of the chart.
 ips-injector-svc
 {{- end }}
 
-{{- define "imagepullsecret-injector.certificateSecretName" -}}
-{{ include "imagepullsecret-injector.name" . }}-webhook-certs
+{{- define "imagepullsecret-injector.certificateName" -}}
+{{ include "imagepullsecret-injector.name" . }}-webhook-cert
 {{- end }}
 
-{{- define "imagepullsecret-injector.lookupCaBundle" -}}
-{{- /* Find the name of the secret corresponding to the default SA in the default namespace */ -}}
-{{- /* Equivalent to `kubectl get sa -n default default -ojsonpath='{.secrets[0].name}'` */ -}}
-{{- $defaultSecretName := ((lookup "v1" "ServiceAccount" "default" "default").secrets | first).name -}}
-{{- /* Fetch the ca.crt from the default secret (still base64-encoded)*/ -}}
-{{- /* Equivalent to `kubectl get secret -n default $defaultSecretName -ojsonpath='{.data.ca\.crt}'` */ -}}
-{{- $caBundle := get (lookup "v1" "Secret" "default" $defaultSecretName ).data "ca.crt" -}}
-{{- $caBundle -}}
+{{- define "imagepullsecret-injector.certificateSecretName" -}}
+{{ include "imagepullsecret-injector.name" . }}-webhook-certs
 {{- end }}
 
 {{/*

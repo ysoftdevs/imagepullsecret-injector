@@ -27,9 +27,9 @@ spec:
             - name: CONFIG_PORT
               value: "8443"
             - name: CONFIG_CERT_PATH
-              value: "/etc/webhook/certs/cert.pem"
+              value: "/etc/webhook/certs/tls.crt"
             - name: CONFIG_KEY_PATH
-              value: "/etc/webhook/certs/key.pem"
+              value: "/etc/webhook/certs/tls.key"
             - name: CONFIG_EXCLUDE_NAMESPACES
               value: {{ join "," .Values.imagepullsecretInjector.excludeNamespaces | quote }}
             - name: CONFIG_SERVICE_ACCOUNTS

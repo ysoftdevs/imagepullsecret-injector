@@ -1,0 +1,12 @@
+kind: Certificate
+metadata:
+  name: {{ include "imagepullsecret-injector.certificateName" . }}
+spec:
+  commonName: {{ include "imagepullsecret-injector.serviceName" . }}.{{ .Release.Namespace }}.svc
+  dnsNames:
+    - {{ include "imagepullsecret-injector.serviceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "imagepullsecret-injector.serviceName" . }}.{{ .Release.Namespace }}.svc
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.clusterIssuer }}
+  secretName: {{ include "imagepullsecret-injector.certificateSecretName" . | quote }}
