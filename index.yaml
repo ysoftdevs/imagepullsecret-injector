@@ -3,6 +3,16 @@ entries:
   imagepullsecret-injector:
   - apiVersion: v2
     appVersion: 0.0.25
+    created: "2022-08-15T13:07:29.47111592Z"
+    description: A Helm chart for Kubernetes
+    digest: 3bb60cf6fb12e17a1f1af752de57daf8f631e58c9a7a3aec2be6b39c99286d34
+    name: imagepullsecret-injector
+    type: application
+    urls:
+    - https://github.com/ysoftdevs/imagepullsecret-injector/releases/download/imagepullsecret-injector-0.0.28/imagepullsecret-injector-0.0.28.tgz
+    version: 0.0.28
+  - apiVersion: v2
+    appVersion: 0.0.25
     created: "2022-08-12T08:13:40.071140815Z"
     description: A Helm chart for Kubernetes
     digest: acd7c6a043f2a908d8ec64da9a916b121d4f28f7ff59cbdb78d436278ea14c2e
@@ -221,4 +231,4 @@ entries:
     urls:
     - https://github.com/ysoftdevs/imagepullsecret-injector/releases/download/imagepullsecret-injector-0.0.4/imagepullsecret-injector-0.0.4.tgz
     version: 0.0.4
-generated: "2022-08-12T08:13:40.071307619Z"
+generated: "2022-08-15T13:07:29.471291621Z"
