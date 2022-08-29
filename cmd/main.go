@@ -62,19 +62,31 @@ func main() {
 	mux.HandleFunc("/mutate", whsvr.serve)
 	whsvr.server.Handler = mux
 
-	// start webhook server in new rountine
+	// define the channel for shutting down the main process
+	endSignal := make(chan bool, 1)
+
+	// wait for the system interrupts in a separate routine
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		sig := <-signalChan
+
+		logger.Infof(fmt.Sprintf("Got OS signal \"%+v\", shutting down webhook server gracefully...", sig))
+
+		endSignal <- true
+	}()
+
+	// start the webhook server in a separate routine
 	go func() {
 		if err := whsvr.server.ListenAndServeTLS(parameters.certFile, parameters.keyFile); err != nil {
 			logger.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
+
+		endSignal <- true
 	}()
 
-	// listening OS shutdown singal
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	<-signalChan
-
-	logger.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
+	<-endSignal
+	logger.Infof("Received the end signal, stopping the main process")
 	if err := whsvr.Shutdown(); err != nil {
 		logger.Errorf("Error while shutting down: %v", err)
 	}
