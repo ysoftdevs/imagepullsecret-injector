@@ -4,7 +4,6 @@
 REPOSITORY_BASE ?= ghcr.io
 IMAGE_REPO ?= $(REPOSITORY_BASE)/ysoftdevs/imagepullsecret-injector
 IMAGE_NAME ?= imagepullsecret-injector
-GENERATOR_IMAGE_NAME ?= webhook-cert-generator
 
 # Github host to use for checking the source tree;
 GIT_HOST ?= github.com/ysoftdevs
@@ -83,7 +82,7 @@ build-linux:
 # Containerd image section
 ############################################################
 
-containerd-image: containerd-login containerd-image containerd-image
+containerd-image: containerd-build containerd-login containerd-push
 
 containerd-login:
 	@echo "$(DOCKER_TOKEN)" | nerdctl login -u "$(DOCKER_USER)" --password-stdin "$(REPOSITORY_BASE)"
@@ -94,25 +93,19 @@ containerd-logout:
 containerd-build:
 	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
 	@nerdctl build -t $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile .
-	@echo "Building the docker image: $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)..."
-	@nerdctl build -t $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile.cert-generator .
 
 containerd-push: containerd-build-image
 	@echo "Pushing the docker image for $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(IMAGE_NAME):latest..."
 	@nerdctl tag $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(IMAGE_NAME):latest
 	@nerdctl push $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)
 	@nerdctl push $(IMAGE_REPO)/$(IMAGE_NAME):latest
-	@echo "Pushing the docker image for $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest..."
-	@nerdctl tag $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
-	@nerdctl push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)
-	@nerdctl push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
 
 
 ############################################################
 # Docker image section
 ############################################################
 
-docker-image: docker-login docker-build docker-push
+docker-image: docker-build docker-login docker-push
 
 docker-login:
 	@echo "$(DOCKER_TOKEN)" | docker login -u "$(DOCKER_USER)" --password-stdin "$(REPOSITORY_BASE)"
@@ -123,18 +116,12 @@ docker-logout:
 docker-build:
 	@echo "Building the docker image: $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)..."
 	@docker build -t $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile .
-	@echo "Building the docker image: $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)..."
-	@docker build -t $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) -f build/Dockerfile.cert-generator .
 
 docker-push: docker-build
 	@echo "Pushing the docker image for $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(IMAGE_NAME):latest..."
 	@docker tag $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(IMAGE_NAME):latest
 	@docker push $(IMAGE_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)
 	@docker push $(IMAGE_REPO)/$(IMAGE_NAME):latest
-	@echo "Pushing the docker image for $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) and $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest..."
-	@docker tag $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
-	@docker push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):$(IMAGE_TAG)
-	@docker push $(IMAGE_REPO)/$(GENERATOR_IMAGE_NAME):latest
 
 
 ############################################################
